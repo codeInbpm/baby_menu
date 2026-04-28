@@ -12,6 +12,15 @@ public class Couple implements Serializable {
     private Long id;
     private Long userIdA;
     private Long userIdB;
+
+    private Long petId;
+
+    private Long ownerId;
+
+    private Boolean switchRolePending;
+
+    private Long switchRoleApplicant;
+
     private LocalDateTime bindTime;
     /** 0 已绑定 1 已解绑 */
     private Integer status;

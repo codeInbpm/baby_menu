@@ -15,4 +15,10 @@ public interface CoupleService {
 
     /** 获取伴侣信息 */
     User partner();
+
+    void requestSwitchRole();
+
+    void acceptSwitchRole();
+
+    Couple getCoupleInfo();
 }

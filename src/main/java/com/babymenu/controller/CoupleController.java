@@ -32,4 +32,16 @@ public class CoupleController {
         coupleService.unbind();
         return Result.success();
     }
+
+    @PostMapping("/switch-role/request")
+    public Result<Void> requestSwitchRole() {
+        coupleService.requestSwitchRole();
+        return Result.success();
+    }
+
+    @PostMapping("/switch-role/accept")
+    public Result<Void> acceptSwitchRole() {
+        coupleService.acceptSwitchRole();
+        return Result.success();
+    }
 }

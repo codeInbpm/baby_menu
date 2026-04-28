@@ -25,6 +25,7 @@ public class UserController {
         Map<String, Object> m = new HashMap<>();
         m.put("user", self);
         m.put("partner", partner);
+        m.put("couple", coupleService.getCoupleInfo());
         m.put("bound", self.getCoupleId() != null);
         return Result.success(m);
     }

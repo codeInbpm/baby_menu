@@ -11,6 +11,9 @@ import com.babymenu.mapper.CoupleMapper;
 import com.babymenu.mapper.MenuItemMapper;
 import com.babymenu.mapper.ServiceRequestMapper;
 import com.babymenu.mapper.UserMapper;
+import com.babymenu.entity.PointsTransaction;
+import com.babymenu.mapper.PointsTransactionMapper;
+import com.babymenu.service.PointsService;
 import com.babymenu.service.RequestService;
 import com.babymenu.util.UserContext;
 import com.babymenu.wechat.WechatSubscribeService;
@@ -32,6 +35,8 @@ public class RequestServiceImpl implements RequestService {
     private final UserMapper userMapper;
     private final CoupleMapper coupleMapper;
     private final WechatSubscribeService subscribeService;
+    private final PointsService pointsService;
+    private final PointsTransactionMapper transactionMapper;
 
     @Override
     public ServiceRequest create(List<Long> itemIds) {
@@ -46,6 +51,17 @@ public class RequestServiceImpl implements RequestService {
 
         List<MenuItem> items = itemMapper.selectBatchIds(itemIds);
         if (items.isEmpty()) throw new BizException("服务项不存在");
+        
+        int totalCost = items.stream().mapToInt(item -> item.getPointsCost() != null ? item.getPointsCost() : 5).sum();
+        pointsService.lazyResetPointsIfNeeded(uid);
+        self = userMapper.selectById(uid);
+        if (!"pet".equals(self.getRoleInCouple())) {
+            throw new BizException("只有小宝贝(Pet)才能发号施令哦～");
+        }
+        if (self.getPoints() == null || self.getPoints() < totalCost) {
+            throw new BizException("今日可用积分不足 (" + totalCost + "分)");
+        }
+        
         String content = items.stream().map(MenuItem::getName).collect(Collectors.joining(" + "));
 
         ServiceRequest req = new ServiceRequest();
@@ -56,6 +72,19 @@ public class RequestServiceImpl implements RequestService {
         req.setContent(content);
         req.setStatus(0);
         requestMapper.insert(req);
+
+        // 扣除积分并记账
+        self.setPoints(self.getPoints() - totalCost);
+        userMapper.updateById(self);
+        
+        PointsTransaction tx = new PointsTransaction();
+        tx.setUserId(uid);
+        tx.setCoupleId(couple.getId());
+        tx.setType("request_deduct");
+        tx.setAmount(totalCost);
+        tx.setRelatedRequestId(req.getId());
+        tx.setCreateTime(LocalDateTime.now());
+        transactionMapper.insert(tx);
 
         try {
             subscribeService.sendRequestNotify(to.getOpenid(), self.getNickname(), content, req.getId());
@@ -95,11 +124,36 @@ public class RequestServiceImpl implements RequestService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public ServiceRequest reject(Long id) {
         ServiceRequest r = mustOwn(id, true);
         if (r.getStatus() != 0) throw new BizException("当前状态无法拒绝");
         r.setStatus(3);
         requestMapper.updateById(r);
+
+        // 获取扣除记录以进行返还
+        PointsTransaction deductTx = transactionMapper.selectOne(Wrappers.<PointsTransaction>lambdaQuery()
+                .eq(PointsTransaction::getRelatedRequestId, id)
+                .eq(PointsTransaction::getType, "request_deduct"));
+                
+        if (deductTx != null && deductTx.getAmount() > 0) {
+            User fromUser = userMapper.selectById(r.getFromUserId());
+            if (fromUser != null) {
+                fromUser.setPoints((fromUser.getPoints() == null ? 0 : fromUser.getPoints()) + deductTx.getAmount());
+                userMapper.updateById(fromUser);
+                
+                // 记账：退款
+                PointsTransaction tx = new PointsTransaction();
+                tx.setUserId(fromUser.getId());
+                tx.setCoupleId(r.getCoupleId());
+                tx.setType("request_refund");
+                tx.setAmount(deductTx.getAmount());
+                tx.setRelatedRequestId(id);
+                tx.setNote("对方拒绝了请求，积分退回");
+                tx.setCreateTime(LocalDateTime.now());
+                transactionMapper.insert(tx);
+            }
+        }
         return r;
     }
 

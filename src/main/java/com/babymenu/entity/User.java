@@ -19,6 +19,7 @@ public class User implements Serializable {
     private Long coupleId;
     private Integer dailyPointsLimit;
     private Integer points;
+    private String roleInCouple;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
     @TableField(fill = FieldFill.INSERT_UPDATE)

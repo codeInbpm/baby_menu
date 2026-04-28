@@ -67,6 +67,36 @@ public class WechatSubscribeService {
         );
     }
 
+    /**
+     * 发送分配给对方的积分通知
+     */
+    public boolean sendAllocateNotify(String toOpenid, String partnerNickname, Integer amount) {
+        return doSend(
+                toOpenid,
+                safeName(partnerNickname),
+                trimThing("给你分配了 " + amount + " 积分！"),
+                "pages/profile/index"
+        );
+    }
+    
+    public boolean sendSwitchRoleRequestNotify(String toOpenid, String partnerNickname) {
+        return doSend(
+                toOpenid,
+                safeName(partnerNickname),
+                trimThing("申请和你互换角色啦～ 要不要也宠TA一次呢？"),
+                "pages/profile/index"
+        );
+    }
+
+    public boolean sendSwitchRoleAcceptNotify(String toOpenid, String partnerNickname) {
+        return doSend(
+                toOpenid,
+                safeName(partnerNickname),
+                trimThing("已同意和你互换角色，现在你是主子啦 ❤️"),
+                "pages/profile/index"
+        );
+    }
+
     private boolean doSend(String toOpenid, String userName, String message, String pagePath) {
         Map<String, Map<String, String>> data = new LinkedHashMap<>();
         // 模板字段顺序必须与微信公共模板「留言提醒」一致

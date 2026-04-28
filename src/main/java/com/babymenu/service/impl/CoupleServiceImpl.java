@@ -81,17 +81,21 @@ public class CoupleServiceImpl implements CoupleService {
         if (inviter == null) throw new BizException("邀请人不存在");
         if (inviter.getCoupleId() != null) throw new BizException("邀请人已经绑定其他伴侣");
 
-        // 创建情侣关系
+        // 创建情侣关系 (inviter 默认 pet, self 默认 owner)
         Couple couple = new Couple();
         couple.setUserIdA(inviter.getId());
         couple.setUserIdB(self.getId());
+        couple.setPetId(inviter.getId());
+        couple.setOwnerId(self.getId());
         couple.setBindTime(LocalDateTime.now());
         couple.setStatus(0);
         coupleMapper.insert(couple);
 
-        // 双方绑定 couple_id
+        // 双方绑定 couple_id 和角色
         inviter.setCoupleId(couple.getId());
+        inviter.setRoleInCouple("pet");
         self.setCoupleId(couple.getId());
+        self.setRoleInCouple("owner");
         userMapper.updateById(inviter);
         userMapper.updateById(self);
 
@@ -124,8 +128,18 @@ public class CoupleServiceImpl implements CoupleService {
             coupleMapper.updateById(c);
             User a = userMapper.selectById(c.getUserIdA());
             User b = userMapper.selectById(c.getUserIdB());
-            if (a != null) { a.setCoupleId(null); userMapper.updateById(a); }
-            if (b != null) { b.setCoupleId(null); userMapper.updateById(b); }
+            if (a != null) { 
+                userMapper.update(null, Wrappers.<User>lambdaUpdate()
+                        .set(User::getCoupleId, null)
+                        .set(User::getRoleInCouple, null)
+                        .eq(User::getId, a.getId())); 
+            }
+            if (b != null) { 
+                userMapper.update(null, Wrappers.<User>lambdaUpdate()
+                        .set(User::getCoupleId, null)
+                        .set(User::getRoleInCouple, null)
+                        .eq(User::getId, b.getId())); 
+            }
         }
     }
 
@@ -160,6 +174,84 @@ public class CoupleServiceImpl implements CoupleService {
             mc.setIcon(d[1]);
             mc.setSort(sort++);
             categoryMapper.insert(mc);
+        }
+    }
+
+    @Override
+    public Couple getCoupleInfo() {
+        Long uid = UserContext.get();
+        User self = userMapper.selectById(uid);
+        if (self == null || self.getCoupleId() == null) return null;
+        return coupleMapper.selectById(self.getCoupleId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void requestSwitchRole() {
+        Long uid = UserContext.get();
+        User self = userMapper.selectById(uid);
+        if (self == null || self.getCoupleId() == null) throw new BizException("请先绑定伴侣");
+        
+        Couple couple = coupleMapper.selectById(self.getCoupleId());
+        if (couple.getSwitchRolePending() != null && couple.getSwitchRolePending()) {
+            throw new BizException("已存在待处理的请求哦");
+        }
+        
+        couple.setSwitchRolePending(true);
+        couple.setSwitchRoleApplicant(uid);
+        coupleMapper.updateById(couple);
+        
+        Long partnerId = couple.getUserIdA().equals(uid) ? couple.getUserIdB() : couple.getUserIdA();
+        User partner = userMapper.selectById(partnerId);
+        
+        try {
+            subscribeService.sendSwitchRoleRequestNotify(partner.getOpenid(), self.getNickname());
+        } catch (Exception e) {
+            log.warn("发送互换请求通知失败: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void acceptSwitchRole() {
+        Long uid = UserContext.get();
+        User self = userMapper.selectById(uid);
+        if (self == null || self.getCoupleId() == null) throw new BizException("请先绑定伴侣");
+        
+        Couple couple = coupleMapper.selectById(self.getCoupleId());
+        if (couple.getSwitchRolePending() == null || !couple.getSwitchRolePending()) {
+            throw new BizException("没有待处理的球换请求哦");
+        }
+        
+        if (uid.equals(couple.getSwitchRoleApplicant())) {
+            throw new BizException("不能自己同意自己发起的请求哦");
+        }
+        
+        // 执行翻转
+        Long applicantId = couple.getSwitchRoleApplicant();
+        User applicant = userMapper.selectById(applicantId);
+        
+        String tempRole = self.getRoleInCouple();
+        self.setRoleInCouple(applicant.getRoleInCouple());
+        applicant.setRoleInCouple(tempRole);
+        
+        userMapper.updateById(self);
+        userMapper.updateById(applicant);
+        
+        // 翻转夫妇内 pet 和 owner
+        Long tempPetId = couple.getPetId();
+        couple.setPetId(couple.getOwnerId());
+        couple.setOwnerId(tempPetId);
+        
+        couple.setSwitchRolePending(false);
+        couple.setSwitchRoleApplicant(null);
+        coupleMapper.updateById(couple);
+        
+        try {
+            subscribeService.sendSwitchRoleAcceptNotify(applicant.getOpenid(), self.getNickname());
+            subscribeService.sendSwitchRoleAcceptNotify(self.getOpenid(), applicant.getNickname());
+        } catch (Exception e) {
+            log.warn("发送互换成功通知失败: {}", e.getMessage());
         }
     }
 }
