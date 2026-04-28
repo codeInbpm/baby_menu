@@ -20,6 +20,7 @@ public class Couple implements Serializable {
     private Boolean switchRolePending;
 
     private Long switchRoleApplicant;
+    private String albumCoverUrl;
 
     private LocalDateTime bindTime;
     /** 0 已绑定 1 已解绑 */
