@@ -1,0 +1,62 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: baby-menu-backend
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://139.224.27.132:3306/baby_menu?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: endless@028btc
+  data:
+    redis:
+      host: 139.224.27.132
+      port: 6379
+      password: endless@028btc
+      database: 0
+      timeout: 5000
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.babymenu.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# JWT 配置
+jwt:
+  secret: babyMenuSuperSecretKeyForJwtSign_PleaseChangeMe_2026
+  # 7 天，单位毫秒
+  expire: 604800000
+  header: Authorization
+
+# 微信小程序配置（appid / secret 请替换为你自己的）
+wechat:
+  appid: wx1c561db3650f9e3d
+  secret: d49069c439b78d2dd7ed3d62f6b64090
+  # 订阅消息模板 ID（公共模板「留言提醒」, 字段: thing1 用户名称 / thing2 备注消息 / time3 留言日期）
+  template-id: 9GAg4lS81ULSg8ZBF0Ot3WMtntNQrnYhXAkUQXaNgNes
+  # formal/trial/developer (正式版/体验版/开发版)
+  miniprogram-state: formal
+
+# 文件上传目录
+upload:
+  path: ./uploads/
+  url-prefix: /api/uploads/
+
+logging:
+  level:
+    com.babymenu: debug
