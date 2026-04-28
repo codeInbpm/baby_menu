@@ -45,11 +45,13 @@ public class WechatSubscribeService {
      * @param fromNickname 发起人昵称（显示在 thing1 用户名称里）
      * @param itemContent  服务内容（如 "洗洗脚 + 按后背"），会自动加 "想要 " 前缀
      */
-    public boolean sendRequestNotify(String toOpenid, String fromNickname, String itemContent) {
+    public boolean sendRequestNotify(String toOpenid, String fromNickname, String itemContent, Long requestId) {
+        String pagePath = requestId != null ? "pages/request/detail?id=" + requestId : "pages/request/list";
         return doSend(
                 toOpenid,
                 safeName(fromNickname),
-                trimThing("想要 " + safeText(itemContent))
+                trimThing("想要 " + safeText(itemContent)),
+                pagePath
         );
     }
 
@@ -60,11 +62,12 @@ public class WechatSubscribeService {
         return doSend(
                 toOpenid,
                 safeName(partnerNickname),
-                trimThing("和你绑定成功啦 ❤️")
+                trimThing("和你绑定成功啦 ❤️"),
+                "pages/profile/index"
         );
     }
 
-    private boolean doSend(String toOpenid, String userName, String message) {
+    private boolean doSend(String toOpenid, String userName, String message, String pagePath) {
         Map<String, Map<String, String>> data = new LinkedHashMap<>();
         // 模板字段顺序必须与微信公共模板「留言提醒」一致
         data.put("thing1", Map.of("value", userName));                                  // 用户名称
@@ -74,6 +77,9 @@ public class WechatSubscribeService {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("template_id", templateId);
         body.put("touser", toOpenid);
+        if (pagePath != null && !pagePath.isEmpty()) {
+            body.put("page", pagePath);
+        }
         body.put("data", data);
         body.put("miniprogram_state", miniprogramState);
         body.put("lang", "zh_CN");

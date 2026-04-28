@@ -58,7 +58,7 @@ public class RequestServiceImpl implements RequestService {
         requestMapper.insert(req);
 
         try {
-            subscribeService.sendRequestNotify(to.getOpenid(), self.getNickname(), content);
+            subscribeService.sendRequestNotify(to.getOpenid(), self.getNickname(), content, req.getId());
         } catch (Exception e) {
             log.warn("发送订阅消息失败: {}", e.getMessage());
         }
