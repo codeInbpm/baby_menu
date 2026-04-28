@@ -52,10 +52,12 @@ wechat:
   # formal/trial/developer (正式版/体验版/开发版)
   miniprogram-state: formal
 
-# 文件上传目录
-upload:
-  path: ./uploads/
-  url-prefix: /api/uploads/
+# MinIO 配置
+minio:
+  endpoint: http://139.224.27.132:9000
+  accessKey: admin
+  secretKey: endless@028btc
+  bucketName: babymenu
 
 logging:
   level:
