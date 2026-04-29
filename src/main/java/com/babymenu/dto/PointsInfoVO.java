@@ -11,4 +11,5 @@ public class PointsInfoVO {
     private Integer canRequestCount;
     private String partnerName;
     private Integer todayReceivedCount;
+    private Integer rewardPoints;
 }

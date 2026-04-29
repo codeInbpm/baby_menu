@@ -63,4 +63,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (uid == null) throw new BizException(401, "未登录");
         return getById(uid);
     }
+
+    @Override
+    public void clearUnreadReward() {
+        Long uid = UserContext.get();
+        if (uid != null) {
+            User user = getById(uid);
+            if (user != null && user.getHasUnreadReward() != null && user.getHasUnreadReward() > 0) {
+                user.setHasUnreadReward(0);
+                updateById(user);
+            }
+        }
+    }
 }

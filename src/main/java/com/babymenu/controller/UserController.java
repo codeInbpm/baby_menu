@@ -36,4 +36,10 @@ public class UserController {
         }
         return Result.success(m);
     }
+
+    @PostMapping("/clearUnreadReward")
+    public Result<Void> clearUnreadReward() {
+        userService.clearUnreadReward();
+        return Result.success(null);
+    }
 }

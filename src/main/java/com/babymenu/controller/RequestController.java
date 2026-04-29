@@ -2,6 +2,7 @@ package com.babymenu.controller;
 
 import com.babymenu.common.Result;
 import com.babymenu.dto.RequestCreateDTO;
+import com.babymenu.dto.RequestEvaluateDTO;
 import com.babymenu.entity.ServiceRequest;
 import com.babymenu.service.RequestService;
 import lombok.RequiredArgsConstructor;
@@ -44,5 +45,10 @@ public class RequestController {
     @PostMapping("/{id}/finish")
     public Result<ServiceRequest> finish(@PathVariable Long id) {
         return Result.success(requestService.finish(id));
+    }
+
+    @PostMapping("/{id}/evaluate")
+    public Result<ServiceRequest> evaluate(@PathVariable Long id, @RequestBody RequestEvaluateDTO dto) {
+        return Result.success(requestService.evaluate(id, dto));
     }
 }

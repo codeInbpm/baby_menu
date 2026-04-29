@@ -3,6 +3,7 @@ package com.babymenu.service.impl;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.babymenu.common.BizException;
+import com.babymenu.dto.RequestEvaluateDTO;
 import com.babymenu.entity.Couple;
 import com.babymenu.entity.MenuItem;
 import com.babymenu.entity.ServiceRequest;
@@ -164,6 +165,94 @@ public class RequestServiceImpl implements RequestService {
         r.setStatus(2);
         r.setFinishTime(LocalDateTime.now());
         requestMapper.updateById(r);
+
+        // 将菜品扣除的积分作为收入给到 Owner
+        PointsTransaction deductTx = transactionMapper.selectOne(Wrappers.<PointsTransaction>lambdaQuery()
+                .eq(PointsTransaction::getRelatedRequestId, id)
+                .eq(PointsTransaction::getType, "request_deduct"));
+        if (deductTx != null && deductTx.getAmount() > 0) {
+            User toUser = userMapper.selectById(r.getToUserId());
+            if (toUser != null) {
+                toUser.setPoints((toUser.getPoints() == null ? 0 : toUser.getPoints()) + deductTx.getAmount());
+                userMapper.updateById(toUser);
+
+                PointsTransaction incomeTx = new PointsTransaction();
+                incomeTx.setUserId(toUser.getId());
+                incomeTx.setCoupleId(r.getCoupleId());
+                incomeTx.setType("request_income");
+                incomeTx.setAmount(deductTx.getAmount());
+                incomeTx.setRelatedRequestId(id);
+                incomeTx.setNote("完成服务，获得积分收益 ✨");
+                incomeTx.setCreateTime(LocalDateTime.now());
+                transactionMapper.insert(incomeTx);
+            }
+        }
+
+        return r;
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    public ServiceRequest evaluate(Long id, RequestEvaluateDTO dto) {
+        // Pet evaluates Owner
+        Long uid = UserContext.get();
+        ServiceRequest r = requestMapper.selectById(id);
+        if (r == null) throw new BizException("请求不存在");
+        if (!r.getFromUserId().equals(uid)) throw new BizException("只有发起人可以评价");
+        if (r.getStatus() != 2) throw new BizException("只能评价已完成的服务");
+        if (r.getEvaluatedTime() != null) throw new BizException("该服务已评价过");
+
+        r.setScore(dto.getScore());
+        r.setPetRewardPoints(dto.getRewardPoints() != null ? dto.getRewardPoints() : 0);
+        r.setPetFeedback(dto.getFeedback());
+        r.setEvaluatedTime(LocalDateTime.now());
+        requestMapper.updateById(r);
+
+        if (r.getPetRewardPoints() > 0) {
+            User toUser = userMapper.selectById(r.getToUserId());
+            if (toUser != null) {
+                // 专属奖励分：历史累计专属奖励
+                toUser.setRewardPoints((toUser.getRewardPoints() != null ? toUser.getRewardPoints() : 0) + r.getPetRewardPoints());
+                // 主积分池：可用来发红包
+                toUser.setPoints((toUser.getPoints() == null ? 0 : toUser.getPoints()) + r.getPetRewardPoints());
+                // 未读动画触发器
+                toUser.setHasUnreadReward((toUser.getHasUnreadReward() != null ? toUser.getHasUnreadReward() : 0) + r.getPetRewardPoints());
+                userMapper.updateById(toUser);
+
+                PointsTransaction tx = new PointsTransaction();
+                tx.setUserId(toUser.getId());
+                tx.setCoupleId(r.getCoupleId());
+                tx.setType("reward_received");
+                tx.setAmount(r.getPetRewardPoints());
+                tx.setRelatedRequestId(id);
+                tx.setNote("服务完成，收到积分奖励 ❤️");
+                tx.setCreateTime(LocalDateTime.now());
+                transactionMapper.insert(tx);
+
+                // 记录 Pet 端流水
+                PointsTransaction txPet = new PointsTransaction();
+                txPet.setUserId(uid);
+                txPet.setCoupleId(r.getCoupleId());
+                txPet.setType("reward_given");
+                txPet.setAmount(-r.getPetRewardPoints()); // 发出奖励对余额无影响，但是作为记录，或者amount设为0。Wait, since we track it just for log, if amount is non-zero, will it affect logic? Our query checks type. We can use amount = r.getPetRewardPoints() with note "赠送积分". Actually let's use 0 to avoid confusing `points` vs `reward_points`. Or just log it with real amount but don't deduct from self.points.
+                // It's better to just put the amount but since the point system is isolated, type 'reward_given' won't be calculated in daily spend.
+                txPet.setAmount(r.getPetRewardPoints());
+                txPet.setRelatedRequestId(id);
+                txPet.setNote("奖励给管家积分 ❤️");
+                txPet.setCreateTime(LocalDateTime.now());
+                transactionMapper.insert(txPet);
+            }
+        }
+        
+        // 可选: 通知 Owner
+        try {
+            User self = userMapper.selectById(uid);
+            User to = userMapper.selectById(r.getToUserId());
+            // subscribeService.send... 
+        } catch (Exception e) {
+            log.warn("发送评价通知失败: {}", e.getMessage());
+        }
+
         return r;
     }
 

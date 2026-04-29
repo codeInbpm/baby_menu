@@ -119,10 +119,12 @@ public class PointsServiceImpl implements PointsService {
 
         if ("owner".equals(self.getRoleInCouple())) {
             vo.setCurrentPoints(self.getPoints() != null ? self.getPoints() : 0);
+            vo.setRewardPoints(self.getRewardPoints() != null ? self.getRewardPoints() : 0);
             return vo;
         }
 
         vo.setCurrentPoints(self.getPoints() != null ? self.getPoints() : 0);
+        vo.setRewardPoints(self.getRewardPoints() != null ? self.getRewardPoints() : 0);
         vo.setDailyLimit(self.getDailyPointsLimit() != null ? self.getDailyPointsLimit() : 50);
         vo.setRemainingToday(vo.getCurrentPoints());
         vo.setCanRequestCount(vo.getCurrentPoints() / 5);

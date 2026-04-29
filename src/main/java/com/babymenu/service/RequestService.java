@@ -1,5 +1,6 @@
 package com.babymenu.service;
 
+import com.babymenu.dto.RequestEvaluateDTO;
 import com.babymenu.entity.ServiceRequest;
 import java.util.List;
 
@@ -10,4 +11,5 @@ public interface RequestService {
     ServiceRequest accept(Long id);
     ServiceRequest reject(Long id);
     ServiceRequest finish(Long id);
+    ServiceRequest evaluate(Long id, RequestEvaluateDTO dto);
 }

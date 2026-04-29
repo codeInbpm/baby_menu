@@ -20,6 +20,8 @@ public class User implements Serializable {
     private Integer dailyPointsLimit;
     private Integer points;
     private String roleInCouple;
+    private Integer rewardPoints;
+    private Integer hasUnreadReward;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
     @TableField(fill = FieldFill.INSERT_UPDATE)
