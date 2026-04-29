@@ -31,5 +31,6 @@ public class PointsTransaction {
 
     private String note;
 
+    @com.baomidou.mybatisplus.annotation.TableField(fill = com.baomidou.mybatisplus.annotation.FieldFill.INSERT)
     private LocalDateTime createTime;
 }

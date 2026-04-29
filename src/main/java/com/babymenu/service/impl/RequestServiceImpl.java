@@ -16,6 +16,7 @@ import com.babymenu.entity.PointsTransaction;
 import com.babymenu.mapper.PointsTransactionMapper;
 import com.babymenu.service.PointsService;
 import com.babymenu.service.RequestService;
+import com.babymenu.service.TitleService;
 import com.babymenu.util.UserContext;
 import com.babymenu.wechat.WechatSubscribeService;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,7 @@ public class RequestServiceImpl implements RequestService {
     private final WechatSubscribeService subscribeService;
     private final PointsService pointsService;
     private final PointsTransactionMapper transactionMapper;
+    private final TitleService titleService;
 
     @Override
     public ServiceRequest create(List<Long> itemIds) {
@@ -188,6 +190,10 @@ public class RequestServiceImpl implements RequestService {
             }
         }
 
+        // 检查并解锁称号
+        titleService.checkAndUnlock(r.getToUserId()); // 检查管家
+        titleService.checkAndUnlock(r.getFromUserId()); // 检查宝贝
+
         return r;
     }
 
@@ -244,14 +250,9 @@ public class RequestServiceImpl implements RequestService {
             }
         }
         
-        // 可选: 通知 Owner
-        try {
-            User self = userMapper.selectById(uid);
-            User to = userMapper.selectById(r.getToUserId());
-            // subscribeService.send... 
-        } catch (Exception e) {
-            log.warn("发送评价通知失败: {}", e.getMessage());
-        }
+        // 检查并解锁称号
+        titleService.checkAndUnlock(r.getToUserId()); // Owner 可能解锁
+        titleService.checkAndUnlock(uid); // Pet 可能解锁
 
         return r;
     }

@@ -1,29 +1,16 @@
 package com.babymenu.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.date.DateUtil;
 import cn.hutool.json.JSONUtil;
-import com.babymenu.common.BizException;
-import com.babymenu.util.UserContext;
 import com.babymenu.dto.ReportOverviewVO;
-import com.babymenu.entity.Couple;
-import com.babymenu.entity.CoupleMemorial;
-import com.babymenu.entity.MenuItem;
-import com.babymenu.entity.PointsTransaction;
-import com.babymenu.entity.ServiceRequest;
-import com.babymenu.entity.User;
-import com.babymenu.mapper.CoupleMapper;
-import com.babymenu.mapper.CoupleMemorialMapper;
-import com.babymenu.mapper.MenuItemMapper;
-import com.babymenu.mapper.PointsTransactionMapper;
-import com.babymenu.mapper.ServiceRequestMapper;
-import com.babymenu.mapper.UserMapper;
+import com.babymenu.entity.*;
+import com.babymenu.common.BizException;
+import com.babymenu.mapper.*;
 import com.babymenu.service.ReportService;
+import com.babymenu.util.UserContext;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -35,46 +22,53 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ReportServiceImpl implements ReportService {
 
-    private final UserMapper userMapper;
     private final CoupleMapper coupleMapper;
+    private final UserMapper userMapper;
     private final ServiceRequestMapper requestMapper;
     private final PointsTransactionMapper transactionMapper;
-    private final MenuItemMapper itemMapper;
     private final CoupleMemorialMapper memorialMapper;
+    private final MenuItemMapper menuItemMapper;
 
     @Override
     public ReportOverviewVO getOverview(String type) {
         Long uid = UserContext.get();
         User self = userMapper.selectById(uid);
-        if (self == null || self.getCoupleId() == null) {
-            throw new BizException("需先绑定情侣关系才能查看宠爱报表哦");
-        }
+        if (self.getCoupleId() == null) throw new BizException("你还没有绑定另一半哦");
 
         Couple couple = coupleMapper.selectById(self.getCoupleId());
         if (couple == null) throw new BizException("情侣关系异常");
 
-        // 计算时间区间
+        // 计算时间区间 (自然周期)
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime startTime;
         switch (type) {
             case "week":
-                startTime = now.minusWeeks(1).with(LocalTime.MIN);
-                break;
-            case "quarter":
-                startTime = now.minusMonths(3).with(LocalTime.MIN);
-                break;
-            case "year":
-                startTime = now.minusYears(1).with(LocalTime.MIN);
+                // 本周从周一开始
+                startTime = now.with(java.time.DayOfWeek.MONDAY).with(LocalTime.MIN);
                 break;
             case "month":
+                // 本月从1号开始
+                startTime = now.withDayOfMonth(1).with(LocalTime.MIN);
+                break;
+            case "quarter":
+                // 本季度从1, 4, 7, 10月1号开始
+                int month = now.getMonthValue();
+                int quarterStartMonth = ((month - 1) / 3) * 3 + 1;
+                startTime = now.withMonth(quarterStartMonth).withDayOfMonth(1).with(LocalTime.MIN);
+                break;
+            case "year":
+                // 本年从1月1号开始
+                startTime = now.withDayOfYear(1).with(LocalTime.MIN);
+                break;
             default:
+                // 默认过去30天
                 startTime = now.minusMonths(1).with(LocalTime.MIN);
                 break;
         }
 
         ReportOverviewVO vo = new ReportOverviewVO();
         
-        // 计算天数，优先使用主纪念日
+        // 计算相爱天数
         CoupleMemorial mainMemorial = memorialMapper.selectOne(Wrappers.<CoupleMemorial>lambdaQuery()
                 .eq(CoupleMemorial::getCoupleId, couple.getId())
                 .eq(CoupleMemorial::getIsMain, true)
@@ -85,18 +79,6 @@ public class ReportServiceImpl implements ReportService {
             vo.setCoupleDays((int) ChronoUnit.DAYS.between(couple.getBindTime(), now) + 1);
         }
 
-        // 获取该周期的所有请求
-        List<ServiceRequest> requests = requestMapper.selectList(Wrappers.<ServiceRequest>lambdaQuery()
-                .eq(ServiceRequest::getCoupleId, couple.getId())
-                .ge(ServiceRequest::getCreateTime, startTime)
-                .orderByAsc(ServiceRequest::getCreateTime));
-
-        // 获取该周期的所有积分流水
-        List<PointsTransaction> txs = transactionMapper.selectList(Wrappers.<PointsTransaction>lambdaQuery()
-                .eq(PointsTransaction::getCoupleId, couple.getId())
-                .ge(PointsTransaction::getCreateTime, startTime)
-                .orderByAsc(PointsTransaction::getCreateTime));
-
         // 识别 Pet 和 Owner ID
         Long petId = null;
         Long ownerId = null;
@@ -104,7 +86,6 @@ public class ReportServiceImpl implements ReportService {
             petId = couple.getPetId();
             ownerId = couple.getOwnerId();
         } else {
-            // 兜底逻辑：通过用户的 role_in_couple 推断
             if ("pet".equals(self.getRoleInCouple())) {
                 petId = uid;
                 ownerId = couple.getUserIdA().equals(uid) ? couple.getUserIdB() : couple.getUserIdA();
@@ -114,22 +95,44 @@ public class ReportServiceImpl implements ReportService {
             }
         }
 
-        // 1. 基础概览
+        // 1. 获取该周期内【发起】的请求 (用于发起总数和热力图)
+        List<ServiceRequest> startedRequests = requestMapper.selectList(Wrappers.<ServiceRequest>lambdaQuery()
+                .eq(ServiceRequest::getCoupleId, couple.getId())
+                .ge(ServiceRequest::getCreateTime, startTime)
+                .orderByAsc(ServiceRequest::getCreateTime));
+
+        // 2. 获取该周期内【完成】的请求 (用于完成总数、积分、偏好分析、评分)
+        List<ServiceRequest> finishedRequests = requestMapper.selectList(Wrappers.<ServiceRequest>lambdaQuery()
+                .eq(ServiceRequest::getCoupleId, couple.getId())
+                .ge(ServiceRequest::getFinishTime, startTime)
+                .eq(ServiceRequest::getStatus, 2)
+                .orderByAsc(ServiceRequest::getFinishTime));
+
+        // 3. 获取该周期内的流水
+        List<PointsTransaction> txs = transactionMapper.selectList(Wrappers.<PointsTransaction>lambdaQuery()
+                .eq(PointsTransaction::getCoupleId, couple.getId())
+                .ge(PointsTransaction::getCreateTime, startTime)
+                .orderByAsc(PointsTransaction::getCreateTime));
+
+        // 统计发起数
         int petReqCount = 0;
+        for (ServiceRequest r : startedRequests) {
+            if (r.getFromUserId().equals(petId)) {
+                petReqCount++;
+            }
+        }
+        vo.setPetRequestCount(petReqCount);
+
+        // 统计完成数、评价、偏好
         int ownerFinCount = 0;
         double totalScore = 0;
         int scoreCount = 0;
         ServiceRequest bestReq = null;
         ServiceRequest highlightReq = null;
-
-        Map<String, Integer> heatMap = new HashMap<>();
         Map<Long, Integer> itemCounts = new HashMap<>();
 
-        for (ServiceRequest r : requests) {
-            if (r.getFromUserId().equals(petId)) {
-                petReqCount++;
-            }
-            if (r.getStatus() == 2 && r.getToUserId().equals(ownerId)) {
+        for (ServiceRequest r : finishedRequests) {
+            if (r.getToUserId().equals(ownerId)) {
                 ownerFinCount++;
             }
             if (r.getScore() != null) {
@@ -144,12 +147,7 @@ public class ReportServiceImpl implements ReportService {
                     highlightReq = r;
                 }
             }
-
-            // 热力图
-            String dateStr = r.getCreateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-            heatMap.put(dateStr, heatMap.getOrDefault(dateStr, 0) + 1);
-
-            // 解析 itemIds
+            // 偏好统计
             try {
                 List<Long> ids = JSONUtil.toList(r.getItemIds(), Long.class);
                 for (Long id : ids) {
@@ -157,17 +155,15 @@ public class ReportServiceImpl implements ReportService {
                 }
             } catch (Exception ignored) {}
         }
-
-        vo.setPetRequestCount(petReqCount);
         vo.setOwnerFinishCount(ownerFinCount);
         vo.setAvgScore(scoreCount > 0 ? (totalScore / scoreCount) : 0.0);
 
-        // 积分概览 & 折线图
+        // 积分统计 & 趋势
         int petCost = 0;
         int ownerEarn = 0;
-        Map<String, ReportOverviewVO.DailyPoints> trendMap = new TreeMap<>(); // 保证日期有序
-
+        Map<String, ReportOverviewVO.DailyPoints> trendMap = new TreeMap<>();
         for (PointsTransaction tx : txs) {
+            if (tx.getCreateTime() == null) continue;
             String dateStr = tx.getCreateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
             trendMap.putIfAbsent(dateStr, new ReportOverviewVO.DailyPoints());
             ReportOverviewVO.DailyPoints dp = trendMap.get(dateStr);
@@ -189,14 +185,19 @@ public class ReportServiceImpl implements ReportService {
         vo.setOwnerRewardPoints(ownerEarn);
         vo.setPointsTrend(new ArrayList<>(trendMap.values()));
 
-        // 平衡指数: (完成次数 / 发起次数) 的百分比，最高100
+        // 平衡指数
         if (petReqCount > 0) {
             vo.setBalanceIndex(Math.min(100, (int) ((ownerFinCount * 100.0) / petReqCount)));
         } else {
             vo.setBalanceIndex(100);
         }
 
-        // 热度日历构建
+        // 热力图
+        Map<String, Integer> heatMap = new HashMap<>();
+        for (ServiceRequest r : startedRequests) {
+            String dateStr = r.getCreateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            heatMap.put(dateStr, heatMap.getOrDefault(dateStr, 0) + 1);
+        }
         List<ReportOverviewVO.DailyCount> heatList = new ArrayList<>();
         heatMap.forEach((date, count) -> {
             ReportOverviewVO.DailyCount dc = new ReportOverviewVO.DailyCount();
@@ -210,9 +211,8 @@ public class ReportServiceImpl implements ReportService {
         // 偏好 Top 5
         List<ReportOverviewVO.ServicePref> topList = new ArrayList<>();
         if (!itemCounts.isEmpty()) {
-            List<MenuItem> allItems = itemMapper.selectBatchIds(itemCounts.keySet());
+            List<MenuItem> allItems = menuItemMapper.selectBatchIds(itemCounts.keySet());
             Map<Long, String> itemNameMap = allItems.stream().collect(Collectors.toMap(MenuItem::getId, MenuItem::getName));
-
             itemCounts.entrySet().stream()
                     .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
                     .limit(5)
@@ -228,6 +228,8 @@ public class ReportServiceImpl implements ReportService {
         // 最佳与高光
         if (bestReq != null) {
             vo.setBestService("最高评分: " + bestReq.getContent() + " (" + bestReq.getScore() + "星)");
+        } else {
+            vo.setBestService("暂无评分记录");
         }
         if (highlightReq != null) {
             vo.setHighlightMoment("单次最大打赏: " + highlightReq.getPetRewardPoints() + "积分 (" + highlightReq.getContent() + ")");
