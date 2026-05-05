@@ -16,6 +16,14 @@ public class ReportController {
 
     private final ReportService reportService;
 
+    /**
+     * 获取数据报表概览
+     *
+     * @param type 统计类型 (week/month/year)
+     * @return 报表数据
+     * @author wb
+     * @date 2026-05-05
+     */
     @GetMapping("/overview")
     public Result<ReportOverviewVO> getOverview(@RequestParam(defaultValue = "month") String type) {
         return Result.success(reportService.getOverview(type));

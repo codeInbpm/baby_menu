@@ -27,6 +27,14 @@ public class UploadController {
     @Value("${minio.bucketName}")
     private String bucketName;
 
+    /**
+     * 上传图片到 MinIO
+     *
+     * @param file 图片文件
+     * @return 访问 URL
+     * @author wb
+     * @date 2026-05-05
+     */
     @PostMapping("/image")
     public Result<Map<String, String>> upload(@RequestParam("file") MultipartFile file) {
         if (file == null || file.isEmpty()) {

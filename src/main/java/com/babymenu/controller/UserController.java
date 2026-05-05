@@ -20,6 +20,13 @@ public class UserController {
     private final CoupleService coupleService;
     private final MemorialService memorialService;
 
+    /**
+     * 获取个人及伴侣信息
+     *
+     * @return 个人信息、伴侣信息及纪念日
+     * @author wb
+     * @date 2026-05-05
+     */
     @GetMapping("/me")
     public Result<Map<String, Object>> me() {
         User self = userService.currentUser();
@@ -37,12 +44,27 @@ public class UserController {
         return Result.success(m);
     }
 
+    /**
+     * 清除未读奖励通知
+     *
+     * @return Result
+     * @author wb
+     * @date 2026-05-05
+     */
     @PostMapping("/clearUnreadReward")
     public Result<Void> clearUnreadReward() {
         userService.clearUnreadReward();
         return Result.success(null);
     }
 
+    /**
+     * 更新个人资料 (昵称/头像)
+     *
+     * @param dto 资料参数
+     * @return Result
+     * @author wb
+     * @date 2026-05-05
+     */
     @PutMapping("/profile")
     public Result<Void> updateProfile(@RequestBody com.babymenu.dto.ProfileDTO dto) {
         userService.updateProfile(dto.getNickname(), dto.getAvatar());
