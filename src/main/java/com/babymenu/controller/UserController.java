@@ -42,4 +42,10 @@ public class UserController {
         userService.clearUnreadReward();
         return Result.success(null);
     }
+
+    @PutMapping("/profile")
+    public Result<Void> updateProfile(@RequestBody com.babymenu.dto.ProfileDTO dto) {
+        userService.updateProfile(dto.getNickname(), dto.getAvatar());
+        return Result.success(null);
+    }
 }

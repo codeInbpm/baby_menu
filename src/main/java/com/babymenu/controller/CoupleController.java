@@ -24,7 +24,7 @@ public class CoupleController {
 
     @PostMapping("/bind")
     public Result<Couple> bind(@RequestBody BindDTO dto) {
-        return Result.success(coupleService.bindByCode(dto.getInviteCode()));
+        return Result.success(coupleService.bindByCode(dto.getInviteCode(), dto.getRole()));
     }
 
     @PostMapping("/unbind")

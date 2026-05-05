@@ -9,4 +9,5 @@ public interface UserService extends IService<User> {
     LoginVO login(LoginDTO dto);
     User currentUser();
     void clearUnreadReward();
+    void updateProfile(String nickname, String avatar);
 }

@@ -8,7 +8,7 @@ public interface CoupleService {
     String generateInvite();
 
     /** 通过邀请码绑定 */
-    Couple bindByCode(String code);
+    Couple bindByCode(String code, String role);
 
     /** 解绑 */
     void unbind();

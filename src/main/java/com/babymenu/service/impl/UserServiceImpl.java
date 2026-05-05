@@ -75,4 +75,19 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             }
         }
     }
+    @Override
+    public void updateProfile(String nickname, String avatar) {
+        Long uid = UserContext.get();
+        if (uid == null) throw new BizException(401, "未登录");
+        User user = getById(uid);
+        if (user == null) throw new BizException("用户不存在");
+
+        if (nickname != null && !nickname.isBlank()) {
+            user.setNickname(nickname);
+        }
+        if (avatar != null && !avatar.isBlank()) {
+            user.setAvatar(avatar);
+        }
+        updateById(user);
+    }
 }

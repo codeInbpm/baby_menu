@@ -60,7 +60,7 @@ public class CoupleServiceImpl implements CoupleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Couple bindByCode(String code) {
+    public Couple bindByCode(String code, String role) {
         if (code == null || code.isBlank()) throw new BizException("请输入邀请码");
         Long uid = UserContext.get();
         User self = userMapper.selectById(uid);
@@ -81,21 +81,34 @@ public class CoupleServiceImpl implements CoupleService {
         if (inviter == null) throw new BizException("邀请人不存在");
         if (inviter.getCoupleId() != null) throw new BizException("邀请人已经绑定其他伴侣");
 
-        // 创建情侣关系 (inviter 默认 pet, self 默认 owner)
+        // 确定角色 (默认: self 为 owner, inviter 为 pet)
+        String selfRole = "owner";
+        String inviterRole = "pet";
+        if ("pet".equals(role)) {
+            selfRole = "pet";
+            inviterRole = "owner";
+        }
+
+        // 创建情侣关系
         Couple couple = new Couple();
         couple.setUserIdA(inviter.getId());
         couple.setUserIdB(self.getId());
-        couple.setPetId(inviter.getId());
-        couple.setOwnerId(self.getId());
+        if ("pet".equals(selfRole)) {
+            couple.setPetId(self.getId());
+            couple.setOwnerId(inviter.getId());
+        } else {
+            couple.setPetId(inviter.getId());
+            couple.setOwnerId(self.getId());
+        }
         couple.setBindTime(LocalDateTime.now());
         couple.setStatus(0);
         coupleMapper.insert(couple);
 
         // 双方绑定 couple_id 和角色
         inviter.setCoupleId(couple.getId());
-        inviter.setRoleInCouple("pet");
+        inviter.setRoleInCouple(inviterRole);
         self.setCoupleId(couple.getId());
-        self.setRoleInCouple("owner");
+        self.setRoleInCouple(selfRole);
         userMapper.updateById(inviter);
         userMapper.updateById(self);
 
@@ -106,7 +119,7 @@ public class CoupleServiceImpl implements CoupleService {
         // 初始化默认菜单分类（按截图）
         initDefaultCategories(couple.getId());
 
-        // 推送绑定成功通知（异步执行，失败不回滚）
+        // 推送绑定成功通知
         try {
             subscribeService.sendBindNotify(inviter.getOpenid(), self.getNickname());
             subscribeService.sendBindNotify(self.getOpenid(),    inviter.getNickname());
