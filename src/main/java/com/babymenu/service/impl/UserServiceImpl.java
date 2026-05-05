@@ -39,7 +39,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             user.setAvatar(dto.getAvatar());
             user.setGender(dto.getGender() == null ? 0 : dto.getGender());
             user.setDailyPointsLimit(50);
-            user.setPoints(0);
+            user.setPoints(50);
             save(user);
         } else {
             boolean change = false;

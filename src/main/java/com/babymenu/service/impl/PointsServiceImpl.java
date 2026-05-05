@@ -86,13 +86,15 @@ public class PointsServiceImpl implements PointsService {
                     .between(PointsTransaction::getCreateTime, monthStart, monthEnd));
             if (count == null || count == 0) {
                 int current = user.getPoints() != null ? user.getPoints() : 0;
-                user.setPoints(0);
+                int target = 50;
+                user.setPoints(target);
                 userMapper.updateById(user);
                 PointsTransaction tx = new PointsTransaction();
                 tx.setUserId(userId);
                 tx.setCoupleId(user.getCoupleId());
                 tx.setType("monthly_reset");
-                tx.setAmount(-current); // Record how much was wiped
+                tx.setAmount(target - current); // 记录补差额
+                tx.setNote("月初重置");
                 tx.setCreateTime(LocalDateTime.now());
                 transactionMapper.insert(tx);
             }
