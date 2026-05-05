@@ -43,9 +43,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             save(user);
         } else {
             boolean change = false;
-            if (dto.getNickname() != null) { user.setNickname(dto.getNickname()); change = true; }
-            if (dto.getAvatar()   != null) { user.setAvatar(dto.getAvatar());     change = true; }
-            if (dto.getGender()   != null) { user.setGender(dto.getGender());     change = true; }
+            // 只有当数据库中字段为空时，才尝试从登录参数中同步
+            if ((user.getNickname() == null || user.getNickname().isBlank()) && dto.getNickname() != null) {
+                user.setNickname(dto.getNickname());
+                change = true;
+            }
+            if ((user.getAvatar() == null || user.getAvatar().isBlank()) && dto.getAvatar() != null) {
+                user.setAvatar(dto.getAvatar());
+                change = true;
+            }
+            if (user.getGender() == null || user.getGender() == 0) {
+                if (dto.getGender() != null) {
+                    user.setGender(dto.getGender());
+                    change = true;
+                }
+            }
             if (change) updateById(user);
         }
 
