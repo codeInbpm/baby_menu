@@ -47,6 +47,7 @@ public class MemorialServiceImpl implements MemorialService {
     @Transactional(rollbackFor = Exception.class)
     public void add(CoupleMemorial memorial) {
         User self = getValidUser();
+        memorial.setUserId(self.getId());
         memorial.setCoupleId(self.getCoupleId());
         if (memorial.getIsMain() != null && memorial.getIsMain()) {
             handleMainReset(self.getCoupleId());

@@ -18,6 +18,8 @@ public class CoupleMemorial implements Serializable {
 
     private Long coupleId;
 
+    private Long userId;
+
     private String title;
 
     private LocalDate memorialDate;
