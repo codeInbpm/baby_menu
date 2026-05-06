@@ -19,8 +19,8 @@ import java.util.Map;
  *
  * 字段约定：
  *  - thing1.DATA  用户名称  ≤ 20 字符（用于显示发起人昵称）
- *  - thing2.DATA  备注消息  ≤ 20 字符（用于显示服务内容 / 通知正文）
- *  - time3.DATA   留言日期  yyyy-MM-dd HH:mm
+ *  - thing3.DATA  备注消息  ≤ 20 字符（用于显示服务内容 / 通知正文）
+ *  - time4.DATA   留言日期  yyyy-MM-dd HH:mm
  */
 @Slf4j
 @Service
@@ -101,8 +101,8 @@ public class WechatSubscribeService {
         Map<String, Map<String, String>> data = new LinkedHashMap<>();
         // 模板字段顺序必须与微信公共模板「留言提醒」一致
         data.put("thing1", Map.of("value", userName));                                  // 用户名称
-        data.put("thing2", Map.of("value", message));                                   // 备注消息
-        data.put("time3",  Map.of("value", LocalDateTime.now().format(TIME_FMT)));      // 留言日期
+        data.put("thing3", Map.of("value", message));                                   // 备注消息
+        data.put("time4",  Map.of("value", LocalDateTime.now().format(TIME_FMT)));      // 留言日期
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("template_id", templateId);

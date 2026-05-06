@@ -47,6 +47,21 @@ public class PointsController {
     }
 
     /**
+     * 分页获取积分流水
+     *
+     * @param current 当前页
+     * @param size 每页大小
+     * @return 分页积分流水列表
+     */
+    @GetMapping("/transactions/page")
+    public Result<com.baomidou.mybatisplus.extension.plugins.pagination.Page<PointsTransaction>> getTransactionsPage(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "1") Integer current,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") Integer size,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) List<String> types) {
+        return Result.success(pointsService.getTransactionsPage(current, size, types));
+    }
+
+    /**
      * 分配积分给对方 (点赞奖励)
      *
      * @param req 分配参数

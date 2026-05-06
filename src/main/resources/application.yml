@@ -48,7 +48,7 @@ wechat:
   appid: wx1c561db3650f9e3d
   secret: d49069c439b78d2dd7ed3d62f6b64090
   # 订阅消息模板 ID（公共模板「留言提醒」, 字段: thing1 用户名称 / thing2 备注消息 / time3 留言日期）
-  template-id: 9GAg4lS81ULSg8ZBF0Ot3WMtntNQrnYhXAkUQXaNgNes
+  template-id: N1kX6edujEwu1pDmt0rXPYCXhCzD7HdAhk
   # formal/trial/developer (正式版/体验版/开发版)
   miniprogram-state: formal
 

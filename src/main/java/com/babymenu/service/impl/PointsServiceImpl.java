@@ -154,6 +154,16 @@ public class PointsServiceImpl implements PointsService {
     }
 
     @Override
+    public com.baomidou.mybatisplus.extension.plugins.pagination.Page<PointsTransaction> getTransactionsPage(Integer current, Integer size, List<String> types) {
+        Long uid = UserContext.get();
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<PointsTransaction> page = new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(current, size);
+        return transactionMapper.selectPage(page, Wrappers.<PointsTransaction>lambdaQuery()
+                .eq(PointsTransaction::getUserId, uid)
+                .in(types != null && !types.isEmpty(), PointsTransaction::getType, types)
+                .orderByDesc(PointsTransaction::getCreateTime));
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void allocate(AllocateReqDTO req) {
         if (req.getAmount() == null || req.getAmount() <= 0) {
