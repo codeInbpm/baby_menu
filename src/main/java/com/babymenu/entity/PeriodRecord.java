@@ -17,6 +17,8 @@ public class PeriodRecord {
     private String symptoms;
     private String mood;
     private String note;
+    private Integer painLevel;
+    private String specialNeeds;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
     @TableField(fill = FieldFill.INSERT_UPDATE)

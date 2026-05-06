@@ -101,4 +101,19 @@ public class PeriodController {
         Long uid = targetUserId != null ? targetUserId : UserContext.get();
         return Result.success(periodService.getAnalysis(uid));
     }
+
+    /**
+     * 获取指定日期的关怀建议
+     *
+     * @param targetUserId 目标用户ID(可选)
+     * @param date         日期 (yyyy-MM-dd)
+     * @return 关怀建议
+     */
+    @GetMapping("/day-care")
+    public Result<com.babymenu.dto.PeriodCareVO> dayCare(
+            @RequestParam(required = false) Long targetUserId,
+            @RequestParam String date) {
+        Long uid = targetUserId != null ? targetUserId : UserContext.get();
+        return Result.success(periodService.getCareDetail(uid, date));
+    }
 }

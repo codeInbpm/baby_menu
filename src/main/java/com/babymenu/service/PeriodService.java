@@ -13,6 +13,7 @@ public interface PeriodService {
     PeriodConfig getConfig(Long userId);
     void saveConfig(PeriodConfig config);
     PeriodAnalysisVO getAnalysis(Long userId);
+    com.babymenu.dto.PeriodCareVO getCareDetail(Long userId, String date);
 
     @Data
     class PeriodOverviewVO {
@@ -24,6 +25,7 @@ public interface PeriodService {
         private LocalDate predictEndDate;
         private LocalDate ovulationDate;
         private Boolean isPeriod; // 今天是否在经期
+        private com.babymenu.dto.PeriodCareVO todayCare;
     }
 
     @Data
