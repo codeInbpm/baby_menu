@@ -49,20 +49,24 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         } else {
             boolean change = false;
             String currentNickname = user.getNickname();
+            boolean isDefaultNickname = currentNickname == null || currentNickname.isBlank() || 
+                                      "微信用户".equals(currentNickname) || "宝贝".equals(currentNickname) ||
+                                      currentNickname.matches("^(骑士|公主|宝贝)\\d{4}$");
+
             if (currentNickname == null || currentNickname.isBlank() || "微信用户".equals(currentNickname) || "宝贝".equals(currentNickname)) {
                 String prefix = user.getGender() == 1 ? "骑士" : (user.getGender() == 2 ? "公主" : "宝贝");
                 user.setNickname(prefix + String.format("%04d", user.getId()));
                 change = true;
             }
-            if ((user.getAvatar() == null || user.getAvatar().isBlank()) && dto.getAvatar() != null) {
+            if ((user.getAvatar() == null || user.getAvatar().isBlank()) && dto.getAvatar() != null && !dto.getAvatar().isBlank()) {
                 user.setAvatar(dto.getAvatar());
                 change = true;
             }
             if (user.getGender() == null || user.getGender() == 0) {
-                if (dto.getGender() != null) {
+                if (dto.getGender() != null && dto.getGender() != 0) {
                     user.setGender(dto.getGender());
-                    // 重新根据最新性别生成
-                    if (!change) {
+                    // 如果当前名字是系统默认名字，则根据新性别重新生成
+                    if (isDefaultNickname) {
                         String prefix = user.getGender() == 1 ? "骑士" : (user.getGender() == 2 ? "公主" : "宝贝");
                         user.setNickname(prefix + String.format("%04d", user.getId()));
                     }
