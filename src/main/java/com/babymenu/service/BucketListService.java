@@ -7,7 +7,7 @@ public interface BucketListService {
 
     void addWish(CoupleBucketList bucketList);
 
-    Page<CoupleBucketList> getList(Integer current, Integer size, Integer status);
+    Page<CoupleBucketList> getList(Integer current, Integer size, Integer status, String category, Integer year);
 
     CoupleBucketList getDetail(Long id);
 

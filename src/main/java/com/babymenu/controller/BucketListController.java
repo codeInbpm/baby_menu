@@ -22,12 +22,21 @@ public class BucketListController {
         return Result.success(null);
     }
 
+    @GetMapping("/tags")
+    public Result<java.util.List<String>> getTags() {
+        return Result.success(java.util.Arrays.asList(
+            "旅行", "约会", "居家", "纪念日", "美食", "体验", "挑战", "未来", "其他"
+        ));
+    }
+
     @GetMapping("/list")
     public Result<Page<CoupleBucketList>> getList(
             @RequestParam(defaultValue = "1") Integer current,
             @RequestParam(defaultValue = "10") Integer size,
-            @RequestParam(required = false) Integer status) {
-        return Result.success(bucketListService.getList(current, size, status));
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Integer year) {
+        return Result.success(bucketListService.getList(current, size, status, category, year));
     }
 
     @GetMapping("/detail/{id}")

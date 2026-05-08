@@ -53,12 +53,16 @@ public class BucketListServiceImpl implements BucketListService {
     }
 
     @Override
-    public Page<CoupleBucketList> getList(Integer current, Integer size, Integer status) {
+    public Page<CoupleBucketList> getList(Integer current, Integer size, Integer status, String category, Integer year) {
         User self = getValidUser();
         Page<CoupleBucketList> page = new Page<>(current, size);
         return bucketListMapper.selectPage(page, Wrappers.<CoupleBucketList>lambdaQuery()
                 .eq(CoupleBucketList::getCoupleId, self.getCoupleId())
                 .eq(status != null, CoupleBucketList::getStatus, status)
+                .eq(category != null && !category.isBlank(), CoupleBucketList::getCategory, category)
+                // Filter by year if provided. We check if createTime or targetDate is within the year? Wait, "年度" usually means createTime or targetDate.
+                // Let's use targetDate if year is provided, or createTime. If targetDate is string like "2026-05-03", we can use LIKE "2026%".
+                .like(year != null, CoupleBucketList::getTargetDate, year != null ? year.toString() + "-" : null)
                 .orderByDesc(CoupleBucketList::getCreateTime));
     }
 
