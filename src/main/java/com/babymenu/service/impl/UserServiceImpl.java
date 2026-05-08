@@ -35,17 +35,23 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             user = new User();
             user.setOpenid(openid);
             user.setUnionid(resp.getUnionid());
-            user.setNickname(dto.getNickname() == null ? "宝贝" : dto.getNickname());
-            user.setAvatar(dto.getAvatar());
             user.setGender(dto.getGender() == null ? 0 : dto.getGender());
             user.setDailyPointsLimit(50);
             user.setPoints(50);
+            user.setNickname("临时生成");
+            user.setAvatar(dto.getAvatar());
             save(user);
+            
+            // 根据性别和ID生成专属不可重复的系统昵称
+            String prefix = user.getGender() == 1 ? "骑士" : (user.getGender() == 2 ? "公主" : "宝贝");
+            user.setNickname(prefix + String.format("%04d", user.getId()));
+            updateById(user);
         } else {
             boolean change = false;
-            // 只有当数据库中字段为空时，才尝试从登录参数中同步
-            if ((user.getNickname() == null || user.getNickname().isBlank()) && dto.getNickname() != null) {
-                user.setNickname(dto.getNickname());
+            String currentNickname = user.getNickname();
+            if (currentNickname == null || currentNickname.isBlank() || "微信用户".equals(currentNickname) || "宝贝".equals(currentNickname)) {
+                String prefix = user.getGender() == 1 ? "骑士" : (user.getGender() == 2 ? "公主" : "宝贝");
+                user.setNickname(prefix + String.format("%04d", user.getId()));
                 change = true;
             }
             if ((user.getAvatar() == null || user.getAvatar().isBlank()) && dto.getAvatar() != null) {
@@ -55,6 +61,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             if (user.getGender() == null || user.getGender() == 0) {
                 if (dto.getGender() != null) {
                     user.setGender(dto.getGender());
+                    // 重新根据最新性别生成
+                    if (!change) {
+                        String prefix = user.getGender() == 1 ? "骑士" : (user.getGender() == 2 ? "公主" : "宝贝");
+                        user.setNickname(prefix + String.format("%04d", user.getId()));
+                    }
                     change = true;
                 }
             }
