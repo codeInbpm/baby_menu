@@ -34,6 +34,7 @@ public class MallServiceImpl implements MallService {
     private final UserMapper userMapper;
     private final CoupleMapper coupleMapper;
     private final PointsTransactionMapper transactionMapper;
+    private final com.babymenu.wechat.WechatSubscribeService subscribeService;
 
     private User getValidUser() {
         Long uid = UserContext.get();
@@ -155,8 +156,10 @@ public class MallServiceImpl implements MallService {
         // 根据类型执行具体逻辑 (例如发送通知，在真实场景中可以接入微信订阅消息或极光推送)
         // 1 - 公主主动服务卡
         if (inv.getItemType() == 1) {
-            // TODO: 发送高优先级提醒给公主端
-            log.info("向公主端推送: 你的管家刚刚使用了公主主动服务卡～他今天好想被你宠一下哦！");
+            // 发送高优先级提醒给公主端
+            sendCardNotificationToPrincess(user, inv);
+            inv.setExtraData("remindCount:1");
+            inventoryMapper.updateById(inv);
         }
         // 2 - 免责金牌
         else if (inv.getItemType() == 2) {
@@ -176,6 +179,49 @@ public class MallServiceImpl implements MallService {
             if (extraParams != null && extraParams.containsKey("style")) {
                 inv.setExtraData(String.valueOf(extraParams.get("style")));
                 inventoryMapper.updateById(inv);
+            }
+        }
+    }
+
+    @Override
+    public void sendPrincessReminder(Long inventoryId) {
+        User user = getValidUser();
+        UserInventory inv = inventoryMapper.selectById(inventoryId);
+        if (inv == null || !inv.getUserId().equals(user.getId())) {
+            throw new BizException("权益不存在");
+        }
+        if (inv.getItemType() != 1 || inv.getStatus() != 1) {
+            throw new BizException("该卡片当前无法提醒");
+        }
+        
+        String extra = inv.getExtraData();
+        int count = 0;
+        if (extra != null && extra.startsWith("remindCount:")) {
+            try {
+                count = Integer.parseInt(extra.substring("remindCount:".length()));
+            } catch (Exception ignored) {}
+        }
+        if (count >= 3) {
+            throw new BizException("已达到最大提醒次数 (3次)");
+        }
+        
+        sendCardNotificationToPrincess(user, inv);
+        inv.setExtraData("remindCount:" + (count + 1));
+        inventoryMapper.updateById(inv);
+    }
+
+    private void sendCardNotificationToPrincess(User owner, UserInventory inv) {
+        Couple couple = coupleMapper.selectById(owner.getCoupleId());
+        Long princessId = couple.getUserIdA().equals(owner.getId()) ? couple.getUserIdB() : couple.getUserIdA();
+        User princess = userMapper.selectById(princessId);
+        if (princess != null && princess.getOpenid() != null) {
+            String toOpenid = princess.getOpenid();
+            log.info("准备发送主动服务卡提醒: toOpenid={}, ownerNick={}, cardId={}", toOpenid, owner.getNickname(), inv.getId());
+            try {
+                boolean ok = subscribeService.sendActiveServiceCardNotify(toOpenid, owner.getNickname(), inv.getId());
+                log.info("主动服务卡提醒发送结果: {}", ok ? "成功" : "失败");
+            } catch (Exception e) {
+                log.warn("发送主动服务卡提醒异常: {}", e.getMessage());
             }
         }
     }

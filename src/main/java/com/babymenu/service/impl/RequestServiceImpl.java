@@ -40,9 +40,11 @@ public class RequestServiceImpl implements RequestService {
     private final PointsService pointsService;
     private final PointsTransactionMapper transactionMapper;
     private final TitleService titleService;
+    private final com.babymenu.mapper.UserInventoryMapper inventoryMapper;
 
     @Override
-    public ServiceRequest create(List<Long> itemIds) {
+    public ServiceRequest create(com.babymenu.dto.RequestCreateDTO dto) {
+        List<Long> itemIds = dto.getItemIds();
         if (itemIds == null || itemIds.isEmpty()) throw new BizException("请选择至少一项服务");
         Long uid = UserContext.get();
         User self = userMapper.selectById(uid);
@@ -61,7 +63,10 @@ public class RequestServiceImpl implements RequestService {
         if (!"pet".equals(self.getRoleInCouple())) {
             throw new BizException("只有小宝贝(Pet)才能发号施令哦～");
         }
-        if (self.getPoints() == null || self.getPoints() < totalCost) {
+        
+        boolean isFree = Boolean.TRUE.equals(dto.getIsFreeForPrincess());
+        
+        if (!isFree && (self.getPoints() == null || self.getPoints() < totalCost)) {
             throw new BizException("今日可用积分不足 (" + totalCost + "分)");
         }
         
@@ -76,21 +81,36 @@ public class RequestServiceImpl implements RequestService {
         req.setStatus(0);
         requestMapper.insert(req);
 
-        // 扣除积分并记账
-        self.setPoints(self.getPoints() - totalCost);
-        userMapper.updateById(self);
-        
-        PointsTransaction tx = new PointsTransaction();
-        tx.setUserId(uid);
-        tx.setCoupleId(couple.getId());
-        tx.setType("request_deduct");
-        tx.setAmount(totalCost);
-        tx.setRelatedRequestId(req.getId());
-        tx.setCreateTime(LocalDateTime.now());
-        transactionMapper.insert(tx);
+        if (isFree && dto.getCardId() != null) {
+            com.babymenu.entity.UserInventory inv = inventoryMapper.selectById(dto.getCardId());
+            if (inv != null && inv.getStatus() == 1) {
+                // 如果是激活状态，公主发起服务后可将其标记为已响应（这里我们可以追加标记到 extraData）
+                inv.setExtraData(inv.getExtraData() + ",requestId:" + req.getId());
+                inventoryMapper.updateById(inv);
+            }
+        }
+
+        if (!isFree) {
+            // 扣除积分并记账
+            self.setPoints(self.getPoints() - totalCost);
+            userMapper.updateById(self);
+            
+            PointsTransaction tx = new PointsTransaction();
+            tx.setUserId(uid);
+            tx.setCoupleId(couple.getId());
+            tx.setType("request_deduct");
+            tx.setAmount(totalCost);
+            tx.setRelatedRequestId(req.getId());
+            tx.setCreateTime(LocalDateTime.now());
+            transactionMapper.insert(tx);
+        }
 
         try {
-            subscribeService.sendRequestNotify(to.getOpenid(), self.getNickname(), content, req.getId());
+            if (isFree) {
+                subscribeService.sendRequestNotify(to.getOpenid(), self.getNickname(), "主动服务：" + content, req.getId());
+            } else {
+                subscribeService.sendRequestNotify(to.getOpenid(), self.getNickname(), content, req.getId());
+            }
         } catch (Exception e) {
             log.warn("发送订阅消息失败: {}", e.getMessage());
         }

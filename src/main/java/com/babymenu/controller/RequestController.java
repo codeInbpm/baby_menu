@@ -27,7 +27,7 @@ public class RequestController {
      */
     @PostMapping
     public Result<ServiceRequest> create(@RequestBody RequestCreateDTO dto) {
-        return Result.success(requestService.create(dto.getItemIds()));
+        return Result.success(requestService.create(dto));
     }
 
     /**

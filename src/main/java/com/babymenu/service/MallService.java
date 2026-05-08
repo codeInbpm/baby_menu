@@ -11,4 +11,5 @@ public interface MallService {
     void redeemItem(Long itemId);
     List<UserInventory> getMyInventory();
     void useItem(Long inventoryId, Map<String, Object> extraParams);
+    void sendPrincessReminder(Long inventoryId);
 }

@@ -38,4 +38,10 @@ public class MallController {
         mallService.useItem(inventoryId, extraParams);
         return Result.success(null);
     }
+
+    @PostMapping("/remind/{inventoryId}")
+    public Result<Void> sendPrincessReminder(@PathVariable Long inventoryId) {
+        mallService.sendPrincessReminder(inventoryId);
+        return Result.success(null);
+    }
 }

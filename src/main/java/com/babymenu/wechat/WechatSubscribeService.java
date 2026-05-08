@@ -55,6 +55,15 @@ public class WechatSubscribeService {
         );
     }
 
+    public boolean sendActiveServiceCardNotify(String toOpenid, String fromNickname, Long cardId) {
+        return doSend(
+                toOpenid,
+                safeName(fromNickname),
+                trimThing("想被你宠一下(主动服务卡)"),
+                "pages/menu/index?from=princessServiceCard&cardId=" + cardId
+        );
+    }
+
     /**
      * 发送绑定成功通知（复用同一模板）
      */
