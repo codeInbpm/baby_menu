@@ -37,12 +37,19 @@ public class MenuServiceImpl implements MenuService {
         Long cid = currentCoupleId();
         return categoryMapper.selectList(
                 Wrappers.<MenuCategory>lambdaQuery()
-                        .eq(MenuCategory::getCoupleId, cid)
+                        .and(q -> q.eq(MenuCategory::getCoupleId, cid).or().eq(MenuCategory::getCoupleId, 0L))
                         .orderByAsc(MenuCategory::getSort));
     }
 
     @Override
     public MenuCategory saveCategory(MenuCategory c) {
+        if (c.getId() != null) {
+            MenuCategory old = categoryMapper.selectById(c.getId());
+            if (old != null && old.getCoupleId() == 0L) {
+                throw new BizException("系统公共分类不允许修改");
+            }
+        }
+        
         c.setCoupleId(currentCoupleId());
         if (c.getId() == null) {
             if (c.getSort() == null) c.setSort(99);
@@ -55,6 +62,10 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     public void removeCategory(Long id) {
+        MenuCategory old = categoryMapper.selectById(id);
+        if (old != null && old.getCoupleId() == 0L) {
+            throw new BizException("系统公共分类不允许删除");
+        }
         currentCoupleId();
         categoryMapper.deleteById(id);
     }
@@ -64,13 +75,20 @@ public class MenuServiceImpl implements MenuService {
         Long cid = currentCoupleId();
         return itemMapper.selectList(
                 Wrappers.<MenuItem>lambdaQuery()
-                        .eq(MenuItem::getCoupleId, cid)
+                        .and(q -> q.eq(MenuItem::getCoupleId, cid).or().eq(MenuItem::getCoupleId, 0L))
                         .eq(categoryId != null, MenuItem::getCategoryId, categoryId)
                         .orderByAsc(MenuItem::getSort));
     }
 
     @Override
     public MenuItem saveItem(MenuItem item) {
+        if (item.getId() != null) {
+            MenuItem old = itemMapper.selectById(item.getId());
+            if (old != null && old.getCoupleId() == 0L) {
+                throw new BizException("系统公共菜谱不允许修改");
+            }
+        }
+        
         item.setCoupleId(currentCoupleId());
         if (item.getPointsCost() == null) item.setPointsCost(5);
         if (item.getSort() == null) item.setSort(99);
@@ -84,6 +102,10 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     public void removeItem(Long id) {
+        MenuItem old = itemMapper.selectById(id);
+        if (old != null && old.getCoupleId() == 0L) {
+            throw new BizException("系统公共菜谱不允许删除");
+        }
         currentCoupleId();
         itemMapper.deleteById(id);
     }
