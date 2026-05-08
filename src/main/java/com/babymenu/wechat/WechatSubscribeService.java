@@ -15,12 +15,12 @@ import java.util.Map;
 
 /**
  * 微信小程序订阅消息推送
- * 模板：留言提醒（公共模板库 · 餐厅排队类目）
+ * 模板：照顾宝宝任务提醒（健康管理类目）
  *
  * 字段约定：
- *  - thing1.DATA  用户名称  ≤ 20 字符（用于显示发起人昵称）
- *  - thing3.DATA  备注消息  ≤ 20 字符（用于显示服务内容 / 通知正文）
- *  - time4.DATA   留言日期  yyyy-MM-dd HH:mm
+ *  - thing1.DATA  宝宝名称（用于显示发起人昵称）
+ *  - thing3.DATA  任务名称（用于显示服务内容 / 通知正文）
+ *  - time4.DATA   任务时间（yyyy-MM-dd HH:mm）
  */
 @Slf4j
 @Service
@@ -42,24 +42,19 @@ public class WechatSubscribeService {
      * 发送服务请求订阅消息
      *
      * @param toOpenid     接收人（伴侣）openid
-     * @param fromNickname 发起人昵称（显示在 thing1 用户名称里）
+     * @param fromNickname 发起人昵称（显示在 thing1 宝宝名称里）
      * @param itemContent  服务内容（如 "洗洗脚 + 按后背"），会自动加 "想要 " 前缀
      */
     public boolean sendRequestNotify(String toOpenid, String fromNickname, String itemContent, Long requestId) {
         String pagePath = requestId != null ? "pages/request/detail?id=" + requestId : "pages/request/list";
-        return doSend(
-                toOpenid,
-                safeName(fromNickname),
-                trimThing("想要 " + safeText(itemContent)),
-                pagePath
-        );
+        return doSendGeneric(toOpenid, fromNickname, "想要 " + safeText(itemContent), pagePath);
     }
 
     public boolean sendActiveServiceCardNotify(String toOpenid, String fromNickname, Long cardId) {
-        return doSend(
+        return doSendGeneric(
                 toOpenid,
-                safeName(fromNickname),
-                trimThing("想被你宠一下(主动服务卡)"),
+                fromNickname,
+                "想被你宠一下(主动服务卡)",
                 "pages/menu/index?from=princessServiceCard&cardId=" + cardId
         );
     }
@@ -68,10 +63,10 @@ public class WechatSubscribeService {
      * 发送绑定成功通知（复用同一模板）
      */
     public boolean sendBindNotify(String toOpenid, String partnerNickname) {
-        return doSend(
+        return doSendGeneric(
                 toOpenid,
-                safeName(partnerNickname),
-                trimThing("和你绑定成功啦 ❤️"),
+                partnerNickname,
+                "和你绑定成功啦 ❤️",
                 "pages/profile/index"
         );
     }
@@ -80,38 +75,43 @@ public class WechatSubscribeService {
      * 发送分配给对方的积分通知
      */
     public boolean sendAllocateNotify(String toOpenid, String partnerNickname, Integer amount) {
-        return doSend(
+        return doSendGeneric(
                 toOpenid,
-                safeName(partnerNickname),
-                trimThing("给你分配了 " + amount + " 积分！"),
+                partnerNickname,
+                "给你分配了 " + amount + " 积分！",
                 "pages/profile/index"
         );
     }
     
     public boolean sendSwitchRoleRequestNotify(String toOpenid, String partnerNickname) {
-        return doSend(
+        return doSendGeneric(
                 toOpenid,
-                safeName(partnerNickname),
-                trimThing("申请和你互换角色啦～ 要不要也宠TA一次呢？"),
+                partnerNickname,
+                "申请和你互换角色啦～ 要不要也宠TA一次呢？",
                 "pages/profile/index"
         );
     }
 
     public boolean sendSwitchRoleAcceptNotify(String toOpenid, String partnerNickname) {
-        return doSend(
+        return doSendGeneric(
                 toOpenid,
-                safeName(partnerNickname),
-                trimThing("已同意和你互换角色，现在你是主子啦 ❤️"),
+                partnerNickname,
+                "已同意和你互换角色，现在你是主子啦 ❤️",
                 "pages/profile/index"
         );
     }
 
-    private boolean doSend(String toOpenid, String userName, String message, String pagePath) {
+    public boolean doSendGeneric(String toOpenid, String userName, String message, String pagePath) {
+        if (toOpenid == null || toOpenid.isBlank()) {
+            log.warn("取消发送订阅消息：接收人 openid 为空");
+            return false;
+        }
+
         Map<String, Map<String, String>> data = new LinkedHashMap<>();
-        // 模板字段顺序必须与微信公共模板「留言提醒」一致
-        data.put("thing1", Map.of("value", userName));                                  // 用户名称
-        data.put("thing3", Map.of("value", message));                                   // 备注消息
-        data.put("time4",  Map.of("value", LocalDateTime.now().format(TIME_FMT)));      // 留言日期
+        // 模板字段严格匹配截图：thing1(宝宝名称), thing3(任务名称), time4(任务时间)
+        data.put("thing1", Map.of("value", safeName(userName)));
+        data.put("thing3", Map.of("value", trimThing(message)));
+        data.put("time4",  Map.of("value", LocalDateTime.now().format(TIME_FMT)));
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("template_id", templateId);
@@ -124,10 +124,23 @@ public class WechatSubscribeService {
         body.put("lang", "zh_CN");
 
         String url = SEND_URL + "?access_token=" + wechatService.getAccessToken();
-        String resp = HttpUtil.post(url, JSONUtil.toJsonStr(body));
-        log.info("订阅消息发送 to={} body={} resp={}", toOpenid, JSONUtil.toJsonStr(body), resp);
-        JSONObject json = JSONUtil.parseObj(resp);
-        return json.getInt("errcode", -1) == 0;
+        try {
+            String resp = cn.hutool.http.HttpRequest.post(url)
+                    .body(JSONUtil.toJsonStr(body))
+                    .execute().body();
+            JSONObject json = JSONUtil.parseObj(resp);
+            int errcode = json.getInt("errcode", -1);
+            if (errcode == 0) {
+                log.info("订阅消息发送成功 to={}", toOpenid);
+                return true;
+            } else {
+                log.warn("订阅消息发送失败 to={} body={} resp={}", toOpenid, JSONUtil.toJsonStr(body), resp);
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("订阅消息发送异常 to={}: {}", toOpenid, e.getMessage());
+            return false;
+        }
     }
 
     /** thing 类型最多 20 个字符 */

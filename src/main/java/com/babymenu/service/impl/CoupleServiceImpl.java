@@ -1,6 +1,7 @@
 package com.babymenu.service.impl;
 
 import cn.hutool.core.util.RandomUtil;
+import com.babymenu.service.NotifyService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.babymenu.common.BizException;
 import com.babymenu.entity.Couple;
@@ -31,7 +32,7 @@ public class CoupleServiceImpl implements CoupleService {
     private final CoupleMapper coupleMapper;
     private final UserMapper userMapper;
     private final MenuCategoryMapper categoryMapper;
-    private final WechatSubscribeService subscribeService;
+    private final NotifyService notifyService;
 
     @Override
     public String generateInvite() {
@@ -119,13 +120,8 @@ public class CoupleServiceImpl implements CoupleService {
         // 初始化默认菜单分类（按截图）
         initDefaultCategories(couple.getId());
 
-        // 推送绑定成功通知
-        try {
-            subscribeService.sendBindNotify(inviter.getOpenid(), self.getNickname());
-            subscribeService.sendBindNotify(self.getOpenid(),    inviter.getNickname());
-        } catch (Exception e) {
-            log.warn("绑定通知发送失败: {}", e.getMessage());
-        }
+        notifyService.notifyPartner(self, "和你绑定成功啦 ❤️", "pages/profile/index");
+        notifyService.notifyPartner(inviter, "和你绑定成功啦 ❤️", "pages/profile/index");
         return couple;
     }
 
@@ -217,11 +213,7 @@ public class CoupleServiceImpl implements CoupleService {
         Long partnerId = couple.getUserIdA().equals(uid) ? couple.getUserIdB() : couple.getUserIdA();
         User partner = userMapper.selectById(partnerId);
         
-        try {
-            subscribeService.sendSwitchRoleRequestNotify(partner.getOpenid(), self.getNickname());
-        } catch (Exception e) {
-            log.warn("发送互换请求通知失败: {}", e.getMessage());
-        }
+        notifyService.notifyPartner(self, "申请和你互换角色啦～ 要不要也宠TA一次呢？", "pages/profile/index");
     }
 
     @Override
@@ -260,11 +252,7 @@ public class CoupleServiceImpl implements CoupleService {
         couple.setSwitchRoleApplicant(null);
         coupleMapper.updateById(couple);
         
-        try {
-            subscribeService.sendSwitchRoleAcceptNotify(applicant.getOpenid(), self.getNickname());
-            subscribeService.sendSwitchRoleAcceptNotify(self.getOpenid(), applicant.getNickname());
-        } catch (Exception e) {
-            log.warn("发送互换成功通知失败: {}", e.getMessage());
-        }
+        notifyService.notifyPartner(self, "已同意和你互换角色，现在你是主子啦 ❤️", "pages/profile/index");
+        notifyService.notifyPartner(applicant, "已同意和你互换角色，现在你是主子啦 ❤️", "pages/profile/index");
     }
 }

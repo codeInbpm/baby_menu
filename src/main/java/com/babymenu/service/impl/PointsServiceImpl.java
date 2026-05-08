@@ -2,6 +2,7 @@ package com.babymenu.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.date.DateUtil;
+import com.babymenu.service.NotifyService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.babymenu.common.BizException;
 import com.babymenu.dto.AllocateReqDTO;
@@ -33,7 +34,7 @@ public class PointsServiceImpl implements PointsService {
     private final UserMapper userMapper;
     private final CoupleMapper coupleMapper;
     private final PointsTransactionMapper transactionMapper;
-    private final WechatSubscribeService subscribeService;
+    private final NotifyService notifyService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -215,10 +216,6 @@ public class PointsServiceImpl implements PointsService {
         txIn.setCreateTime(LocalDateTime.now());
         transactionMapper.insert(txIn);
 
-        try {
-            subscribeService.sendAllocateNotify(partner.getOpenid(), self.getNickname(), req.getAmount());
-        } catch (Exception e) {
-            log.warn("发送分配积分订阅消息失败: {}", e.getMessage());
-        }
+        notifyService.notifyPartner(self, "给你分配了 " + req.getAmount() + " 积分！", "pages/profile/index");
     }
 }

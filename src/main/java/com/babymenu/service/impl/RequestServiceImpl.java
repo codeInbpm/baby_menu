@@ -1,6 +1,7 @@
 package com.babymenu.service.impl;
 
 import cn.hutool.json.JSONUtil;
+import com.babymenu.service.NotifyService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.babymenu.common.BizException;
 import com.babymenu.dto.RequestEvaluateDTO;
@@ -36,7 +37,7 @@ public class RequestServiceImpl implements RequestService {
     private final MenuItemMapper itemMapper;
     private final UserMapper userMapper;
     private final CoupleMapper coupleMapper;
-    private final WechatSubscribeService subscribeService;
+    private final NotifyService notifyService;
     private final PointsService pointsService;
     private final PointsTransactionMapper transactionMapper;
     private final TitleService titleService;
@@ -105,15 +106,8 @@ public class RequestServiceImpl implements RequestService {
             transactionMapper.insert(tx);
         }
 
-        try {
-            if (isFree) {
-                subscribeService.sendRequestNotify(to.getOpenid(), self.getNickname(), "主动服务：" + content, req.getId());
-            } else {
-                subscribeService.sendRequestNotify(to.getOpenid(), self.getNickname(), content, req.getId());
-            }
-        } catch (Exception e) {
-            log.warn("发送订阅消息失败: {}", e.getMessage());
-        }
+        String pagePath = "pages/request/detail?id=" + req.getId();
+        notifyService.notifyPartner(self, isFree ? "主动服务：" + content : content, pagePath);
         return req;
     }
 

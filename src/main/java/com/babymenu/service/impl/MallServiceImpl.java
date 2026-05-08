@@ -1,5 +1,6 @@
 package com.babymenu.service.impl;
 
+import com.babymenu.service.NotifyService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.babymenu.common.BizException;
 import com.babymenu.entity.Couple;
@@ -34,7 +35,7 @@ public class MallServiceImpl implements MallService {
     private final UserMapper userMapper;
     private final CoupleMapper coupleMapper;
     private final PointsTransactionMapper transactionMapper;
-    private final com.babymenu.wechat.WechatSubscribeService subscribeService;
+    private final NotifyService notifyService;
 
     private User getValidUser() {
         Long uid = UserContext.get();
@@ -157,7 +158,7 @@ public class MallServiceImpl implements MallService {
         // 1 - 公主主动服务卡
         if (inv.getItemType() == 1) {
             // 发送高优先级提醒给公主端
-            sendCardNotificationToPrincess(user, inv);
+            notifyService.sendActiveCardNotify(user, inv.getId());
             inv.setExtraData("remindCount:1");
             inventoryMapper.updateById(inv);
         }
@@ -205,24 +206,9 @@ public class MallServiceImpl implements MallService {
             throw new BizException("已达到最大提醒次数 (3次)");
         }
         
-        sendCardNotificationToPrincess(user, inv);
+        notifyService.sendActiveCardNotify(user, inv.getId());
         inv.setExtraData("remindCount:" + (count + 1));
         inventoryMapper.updateById(inv);
     }
 
-    private void sendCardNotificationToPrincess(User owner, UserInventory inv) {
-        Couple couple = coupleMapper.selectById(owner.getCoupleId());
-        Long princessId = couple.getUserIdA().equals(owner.getId()) ? couple.getUserIdB() : couple.getUserIdA();
-        User princess = userMapper.selectById(princessId);
-        if (princess != null && princess.getOpenid() != null) {
-            String toOpenid = princess.getOpenid();
-            log.info("准备发送主动服务卡提醒: toOpenid={}, ownerNick={}, cardId={}", toOpenid, owner.getNickname(), inv.getId());
-            try {
-                boolean ok = subscribeService.sendActiveServiceCardNotify(toOpenid, owner.getNickname(), inv.getId());
-                log.info("主动服务卡提醒发送结果: {}", ok ? "成功" : "失败");
-            } catch (Exception e) {
-                log.warn("发送主动服务卡提醒异常: {}", e.getMessage());
-            }
-        }
-    }
 }
