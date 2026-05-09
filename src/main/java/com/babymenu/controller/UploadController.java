@@ -74,4 +74,41 @@ public class UploadController {
             throw new BizException("上传失败: " + e.getMessage());
         }
     }
+
+    /**
+     * 上传语音到 MinIO
+     */
+    @PostMapping("/voice")
+    public Result<Map<String, String>> uploadVoice(@RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BizException("文件不能为空");
+        }
+        String orig = file.getOriginalFilename() == null ? "voice.aac" : file.getOriginalFilename();
+        String ext = orig.contains(".") ? orig.substring(orig.lastIndexOf(".")) : ".aac";
+        String filename = IdUtil.fastSimpleUUID() + ext;
+
+        try (InputStream in = file.getInputStream()) {
+            boolean isExist = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
+            if (!isExist) {
+                minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
+                String policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Action\":[\"s3:GetBucketLocation\",\"s3:ListBucket\"],\"Resource\":[\"arn:aws:s3:::" + bucketName + "\"]},{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::" + bucketName + "/*\"]}]}";
+                minioClient.setBucketPolicy(SetBucketPolicyArgs.builder().bucket(bucketName).config(policy).build());
+            }
+
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(filename)
+                            .stream(in, file.getSize(), -1)
+                            .contentType(file.getContentType() != null ? file.getContentType() : "audio/aac")
+                            .build()
+            );
+
+            String url = endpoint + "/" + bucketName + "/" + filename;
+            return Result.success(Map.of("url", url));
+        } catch (Exception e) {
+            log.error("上传语音到MinIO错误", e);
+            throw new BizException("上传失败: " + e.getMessage());
+        }
+    }
 }

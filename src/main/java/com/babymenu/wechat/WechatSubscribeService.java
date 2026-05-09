@@ -101,6 +101,24 @@ public class WechatSubscribeService {
         );
     }
 
+    public boolean sendConfessionRemindNotify(String toOpenid, String partnerNickname) {
+        return doSendGeneric(
+                toOpenid,
+                partnerNickname,
+                "兑换了告白券，快去夸夸他吧！",
+                "pages/confession/pending"
+        );
+    }
+
+    public boolean sendConfessionReceivedNotify(String toOpenid, String partnerNickname) {
+        return doSendGeneric(
+                toOpenid,
+                partnerNickname,
+                "你的专属告白已送达，快听！",
+                "pages/confession/list"
+        );
+    }
+
     public boolean doSendGeneric(String toOpenid, String userName, String message, String pagePath) {
         if (toOpenid == null || toOpenid.isBlank()) {
             log.warn("取消发送订阅消息：接收人 openid 为空");

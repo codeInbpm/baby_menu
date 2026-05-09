@@ -15,9 +15,11 @@ import com.babymenu.mapper.UserInventoryMapper;
 import com.babymenu.mapper.ServiceRequestMapper;
 import com.babymenu.mapper.UserMapper;
 import com.babymenu.service.MallService;
+import com.babymenu.service.ConfessionService;
 import com.babymenu.util.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +40,7 @@ public class MallServiceImpl implements MallService {
     private final PointsTransactionMapper transactionMapper;
     private final ServiceRequestMapper requestMapper;
     private final NotifyService notifyService;
+    private final ConfessionService confessionService;
 
     private User getValidUser() {
         Long uid = UserContext.get();
@@ -83,6 +86,18 @@ public class MallServiceImpl implements MallService {
                 throw new BizException("本月已兑换过免责金牌，请下个月再来哦");
             }
         }
+
+        // 校验告白券每月限购2次 (itemType=4)
+        if (item.getItemType() == 4) {
+            LocalDateTime startOfMonth = YearMonth.now().atDay(1).atStartOfDay();
+            long count = inventoryMapper.selectCount(Wrappers.<UserInventory>lambdaQuery()
+                    .eq(UserInventory::getUserId, user.getId())
+                    .eq(UserInventory::getItemType, 4)
+                    .ge(UserInventory::getCreateTime, startOfMonth));
+            if (count >= 2) {
+                throw new BizException("本月已兑换了 2 次告白券，给公主留点喘息的空间吧～");
+            }
+        }
         
         // 校验唯一拥有的商品 (如头像框, 皮肤)
         if (item.getItemType() == 3 || item.getItemType() == 5) {
@@ -122,6 +137,13 @@ public class MallServiceImpl implements MallService {
         inventoryMapper.insert(inv);
         
         // 特殊逻辑：主动触发推送等可以在此处或使用接口触发。为了逻辑清晰，某些商品兑换后即处于"待使用"状态。
+        // 公主告白券 (itemType=4)，兑换后立即生效，进入待回应状态并触发通知
+        if (item.getItemType() == 4) {
+            inv.setStatus(1); // 标记已使用
+            inv.setUseTime(LocalDateTime.now());
+            inventoryMapper.updateById(inv);
+            confessionService.triggerConfession(user, inv.getId());
+        }
     }
 
     @Override
