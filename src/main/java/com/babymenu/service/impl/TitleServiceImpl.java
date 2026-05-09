@@ -160,9 +160,16 @@ public class TitleServiceImpl implements TitleService {
 
         stats.put("total_count", services.size());
         
-        // 计算平均分
+        // 计算平均分 (排除已使用免责金牌的低分服务)
         double avgScore = services.stream()
                 .filter(s -> s.getScore() != null)
+                .filter(s -> {
+                    // 如果分数 <= 2 且使用了免责金牌，则不计入平均分统计，以保护管家称号
+                    if (s.getScore() <= 2 && Boolean.TRUE.equals(s.getIsExemptionUsed() == null ? false : s.getIsExemptionUsed() == 1)) {
+                        return false;
+                    }
+                    return true;
+                })
                 .mapToInt(ServiceRequest::getScore)
                 .average().orElse(0.0);
         stats.put("avg_score", avgScore);

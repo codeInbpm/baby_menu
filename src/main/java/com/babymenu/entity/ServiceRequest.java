@@ -25,6 +25,8 @@ public class ServiceRequest implements Serializable {
     private Integer petRewardPoints;
     private String petFeedback;
     private LocalDateTime evaluatedTime;
+    private Integer isExemptionUsed;
+    private Integer penaltyPoints;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
     @TableField(fill = FieldFill.INSERT_UPDATE)

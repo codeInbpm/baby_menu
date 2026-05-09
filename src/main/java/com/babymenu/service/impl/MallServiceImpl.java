@@ -12,6 +12,7 @@ import com.babymenu.mapper.CoupleMapper;
 import com.babymenu.mapper.MallItemMapper;
 import com.babymenu.mapper.PointsTransactionMapper;
 import com.babymenu.mapper.UserInventoryMapper;
+import com.babymenu.mapper.ServiceRequestMapper;
 import com.babymenu.mapper.UserMapper;
 import com.babymenu.service.MallService;
 import com.babymenu.util.UserContext;
@@ -35,6 +36,7 @@ public class MallServiceImpl implements MallService {
     private final UserMapper userMapper;
     private final CoupleMapper coupleMapper;
     private final PointsTransactionMapper transactionMapper;
+    private final ServiceRequestMapper requestMapper;
     private final NotifyService notifyService;
 
     private User getValidUser() {
@@ -165,9 +167,42 @@ public class MallServiceImpl implements MallService {
         // 2 - 免责金牌
         else if (inv.getItemType() == 2) {
             // 在具体的请求(request)服务完成/失败时，检查是否有免责金牌被使用。此处可绑定 extraParams 中的 requestId
-            if (extraParams != null && extraParams.containsKey("requestId")) {
-                inv.setExtraData("requestId:" + extraParams.get("requestId"));
+            Object requestIdObj = (extraParams != null) ? extraParams.get("requestId") : null;
+            if (requestIdObj != null) {
+                Long requestId = Long.valueOf(requestIdObj.toString());
+                com.babymenu.entity.ServiceRequest req = requestMapper.selectById(requestId);
+                if (req == null) {
+                    throw new BizException("关联的服务请求不存在");
+                }
+                if (req.getStatus() == 2 || req.getStatus() == 3) {
+                    throw new BizException("该服务已结束，无法再使用免责金牌");
+                }
+                req.setIsExemptionUsed(1); // 标记该服务已免责
+                requestMapper.updateById(req);
+                
+                // --- 核心逻辑：如果已经产生了惩罚扣分，则退回 ---
+                if (req.getPenaltyPoints() != null && req.getPenaltyPoints() > 0) {
+                    user.setPoints((user.getPoints() == null ? 0 : user.getPoints()) + req.getPenaltyPoints());
+                    userMapper.updateById(user);
+                    
+                    PointsTransaction txRefund = new PointsTransaction();
+                    txRefund.setUserId(user.getId());
+                    txRefund.setCoupleId(user.getCoupleId());
+                    txRefund.setType("exemption_refund");
+                    txRefund.setAmount(req.getPenaltyPoints());
+                    txRefund.setRelatedRequestId(requestId);
+                    txRefund.setNote("使用免责金牌，退回评价扣分 ✨");
+                    txRefund.setCreateTime(LocalDateTime.now());
+                    transactionMapper.insert(txRefund);
+                    
+                    req.setPenaltyPoints(0); // 清空罚分记录
+                    requestMapper.updateById(req);
+                }
+
+                inv.setExtraData("requestId:" + requestId);
                 inventoryMapper.updateById(inv);
+            } else {
+                throw new BizException("使用失败：请先选择一个进行中的服务请求来应用免责金牌");
             }
         }
         // 4 - 公主告白券
