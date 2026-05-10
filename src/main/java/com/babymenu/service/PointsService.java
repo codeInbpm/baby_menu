@@ -18,4 +18,6 @@ public interface PointsService {
     void allocate(AllocateReqDTO req);
 
     void lazyResetPointsIfNeeded(Long userId);
+
+    void deductPoints(Long userId, Integer amount, String note);
 }

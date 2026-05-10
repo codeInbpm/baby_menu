@@ -218,4 +218,30 @@ public class PointsServiceImpl implements PointsService {
 
         notifyService.notifyPartner(self, "给你分配了 " + req.getAmount() + " 积分！", "pages/profile/index");
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deductPoints(Long userId, Integer amount, String note) {
+        if (amount == null || amount <= 0) return;
+        
+        User user = userMapper.selectById(userId);
+        if (user == null) throw new BizException("用户不存在");
+        
+        int current = user.getPoints() != null ? user.getPoints() : 0;
+        if (current < amount) {
+            throw new BizException("积分余额不足");
+        }
+        
+        user.setPoints(current - amount);
+        userMapper.updateById(user);
+        
+        PointsTransaction tx = new PointsTransaction();
+        tx.setUserId(userId);
+        tx.setCoupleId(user.getCoupleId());
+        tx.setType("mall_deduct");
+        tx.setAmount(-amount);
+        tx.setNote(note);
+        tx.setCreateTime(LocalDateTime.now());
+        transactionMapper.insert(tx);
+    }
 }

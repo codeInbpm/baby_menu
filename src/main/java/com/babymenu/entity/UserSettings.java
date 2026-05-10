@@ -13,6 +13,8 @@ public class UserSettings implements Serializable {
     private Long userId;
     private String currentAvatarFrameCode;
     private String currentBubbleStyle;
+    private String currentSkinCode;
+    private String unlockedSkins;
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
 }
