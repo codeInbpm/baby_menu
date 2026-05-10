@@ -196,8 +196,16 @@ public class MallServiceImpl implements MallService {
                 if (req == null) {
                     throw new BizException("关联的服务请求不存在");
                 }
-                if (req.getStatus() == 2 || req.getStatus() == 3) {
-                    throw new BizException("该服务已结束，无法再使用免责金牌");
+                if (req.getStatus() == 3) {
+                    throw new BizException("该服务已被拒绝，无法使用免责金牌");
+                }
+                // 如果已完成，且评分大于3，则不给用
+                if (req.getStatus() == 2 && req.getScore() != null && req.getScore() > 3) {
+                    throw new BizException("该服务评价良好，无需使用免责金牌哦");
+                }
+                // 如果已完成但还没评分，或者评分<=3，允许使用
+                if (req.getIsExemptionUsed() != null && req.getIsExemptionUsed() == 1) {
+                    throw new BizException("该服务已经受过免责保护啦");
                 }
                 req.setIsExemptionUsed(1); // 标记该服务已免责
                 requestMapper.updateById(req);
