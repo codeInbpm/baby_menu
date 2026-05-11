@@ -13,7 +13,7 @@ public interface BucketListService {
 
     void checkWish(Long id);
 
-    void updateMemorialNote(Long id, String note);
+    void updateMemorialNote(Long id, String note, String imageUrl);
 
     void deleteWish(Long id);
 }

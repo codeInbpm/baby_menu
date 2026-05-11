@@ -138,7 +138,7 @@ public class BucketListServiceImpl implements BucketListService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateMemorialNote(Long id, String note) {
+    public void updateMemorialNote(Long id, String note, String imageUrl) {
         User self = getValidUser();
         CoupleBucketList wish = bucketListMapper.selectById(id);
         if (wish == null || !wish.getCoupleId().equals(self.getCoupleId())) {
@@ -148,8 +148,14 @@ public class BucketListServiceImpl implements BucketListService {
         String role = self.getRoleInCouple();
         if ("owner".equals(role)) {
             wish.setMemorialNoteOwner(note);
+            if (imageUrl != null && !imageUrl.isBlank()) {
+                wish.setMemorialImageOwner(imageUrl);
+            }
         } else if ("pet".equals(role)) {
             wish.setMemorialNotePet(note);
+            if (imageUrl != null && !imageUrl.isBlank()) {
+                wish.setMemorialImagePet(imageUrl);
+            }
         }
         bucketListMapper.updateById(wish);
     }

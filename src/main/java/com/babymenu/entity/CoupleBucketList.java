@@ -44,7 +44,11 @@ public class CoupleBucketList implements Serializable {
 
     private String memorialNoteOwner;
 
+    private String memorialImageOwner;
+
     private String memorialNotePet;
+
+    private String memorialImagePet;
 
     private LocalDateTime createTime;
 

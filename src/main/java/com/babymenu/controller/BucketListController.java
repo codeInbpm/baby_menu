@@ -52,7 +52,7 @@ public class BucketListController {
 
     @PostMapping("/note/{id}")
     public Result<Void> updateNote(@PathVariable Long id, @RequestBody Map<String, String> body) {
-        bucketListService.updateMemorialNote(id, body.get("note"));
+        bucketListService.updateMemorialNote(id, body.get("note"), body.get("imageUrl"));
         return Result.success(null);
     }
 
